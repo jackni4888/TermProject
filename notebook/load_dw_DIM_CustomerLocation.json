@@ -1,0 +1,345 @@
+{
+	"name": "load_dw_DIM_CustomerLocation",
+	"properties": {
+		"folder": {
+			"name": "load_dw"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "sparkpool",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"synapse_widget": {
+				"version": "0.1"
+			},
+			"kernelspec": {
+				"name": "synapse_sparksql",
+				"display_name": "Synapse SQL"
+			},
+			"language_info": {
+				"name": "sql"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/b4f891dc-d700-4853-9305-93cd43d90bc4/resourceGroups/AzureStudent/providers/Microsoft.Synapse/workspaces/jaknigh-termproject/bigDataPools/sparkpool",
+				"name": "sparkpool",
+				"type": "Spark",
+				"endpoint": "https://jaknigh-termproject.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/sparkpool",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "2.4",
+				"nodeCount": 10,
+				"cores": 4,
+				"memory": 28,
+				"extraHeader": null
+			}
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"Initialize tables required to populate final output. Views leveraged to reduce width of tables in memory"
+				],
+				"attachments": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": true
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"CREATE OR REPLACE TEMPORARY VIEW WWI_Customer AS\r\n",
+					"SELECT\r\n",
+					"     CustomerId\r\n",
+					"    ,DeliveryCityId\r\n",
+					"    ,DeliveryAddressLine1\r\n",
+					"    ,DeliveryPostalCode\r\n",
+					"    ,PrimaryContactPersonId\r\n",
+					"FROM parquet.`abfss://termproject@jaknigh.dfs.core.windows.net/intake/WWI_Sales_v_Customers/current/`;\r\n",
+					"\r\n",
+					"CREATE OR REPLACE TEMPORARY VIEW WWI_City AS\r\n",
+					"SELECT\r\n",
+					"     CityId\r\n",
+					"    ,CityName\r\n",
+					"    ,StateProvinceId\r\n",
+					"FROM parquet.`abfss://termproject@jaknigh.dfs.core.windows.net/intake/WWI_Application_v_Cities/current/`;\r\n",
+					"\r\n",
+					"CREATE OR REPLACE TEMPORARY VIEW WWI_StateProvince AS\r\n",
+					"SELECT\r\n",
+					"     StateProvinceId\r\n",
+					"    ,StateProvinceCode\r\n",
+					"    ,StateProvinceName\r\n",
+					"    ,CountryId\r\n",
+					"    ,SalesTerritory\r\n",
+					"FROM parquet.`abfss://termproject@jaknigh.dfs.core.windows.net/intake/WWI_Application_v_StateProvinces/current/`;\r\n",
+					"\r\n",
+					"CREATE OR REPLACE TEMPORARY VIEW WWI_Country AS\r\n",
+					"SELECT\r\n",
+					"     CountryId\r\n",
+					"    ,CountryName\r\n",
+					"    ,IsoAlpha3Code\r\n",
+					"FROM parquet.`abfss://termproject@jaknigh.dfs.core.windows.net/intake/WWI_Application_v_Countries/current/`;\r\n",
+					"\r\n",
+					"CREATE OR REPLACE TEMPORARY VIEW Lookup_CountryCode AS\r\n",
+					"SELECT\r\n",
+					"     AltCountryName\r\n",
+					"    ,ISOCountryCode\r\n",
+					"FROM parquet.`abfss://termproject@jaknigh.dfs.core.windows.net/metadata/Lookup_CountryCode/`;\r\n",
+					"\r\n",
+					"CREATE OR REPLACE TEMPORARY VIEW Lookup_StateProvince AS\r\n",
+					"SELECT\r\n",
+					"     Country\r\n",
+					"    ,Region\r\n",
+					"    ,StateProvinceCode\r\n",
+					"    ,StateProvince\r\n",
+					"FROM parquet.`abfss://termproject@jaknigh.dfs.core.windows.net/metadata/Lookup_StateProvince/`;\r\n",
+					"\r\n",
+					"CREATE OR REPLACE TEMPORARY VIEW NW_Customer AS\r\n",
+					"SELECT\r\n",
+					"     CustomerId\r\n",
+					"    ,Address\r\n",
+					"    ,PostalCode\r\n",
+					"    ,Region\r\n",
+					"    ,Country\r\n",
+					"    ,City\r\n",
+					"FROM parquet.`abfss://termproject@jaknigh.dfs.core.windows.net/intake/NW_dbo_Customers/current/`;"
+				],
+				"attachments": null,
+				"execution_count": 1
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"Create temporary view to be leveraged for both bridge and final dimension"
+				],
+				"attachments": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": true
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"CREATE OR REPLACE TEMPORARY VIEW Customer_CustomerLocation AS\r\n",
+					"WITH CTE_BASE AS (\r\n",
+					"    SELECT\r\n",
+					"         WWCI.CityName AS City\r\n",
+					"        ,WWSP.StateProvinceCode AS StateProvinceCode\r\n",
+					"        ,WWSP.StateProvinceName AS StateProvince\r\n",
+					"        ,WWCO.CountryName AS Country\r\n",
+					"        ,WWCO.ISOAlpha3Code AS CountryCode\r\n",
+					"        ,WWC.DeliveryPostalCode AS PostalCode\r\n",
+					"        ,WWC.DeliveryAddressLine1 AS Street\r\n",
+					"        ,CONCAT(WWC.DeliveryAddressLine1, ', ',WWCI.CityName, ', ', WWSP.StateProvinceCode, CASE WHEN WWC.DeliveryPostalCode IS NULL THEN '' ELSE ' '||WWC.DeliveryPostalCode END) AS FullAddress\r\n",
+					"        ,WWSP.SalesTerritory AS Region\r\n",
+					"        ,WWC.CustomerId AS CustomerId\r\n",
+					"        ,'Wide World Importers' AS CustomerDataSource\r\n",
+					"    FROM WWI_Customer WWC\r\n",
+					"    LEFT JOIN WWI_City WWCI\r\n",
+					"        ON WWC.DeliveryCityId = WWCI.CityId\r\n",
+					"    LEFT JOIN WWI_StateProvince WWSP\r\n",
+					"        ON WWCI.StateProvinceId = WWSP.StateProvinceId\r\n",
+					"    LEFT JOIN WWI_Country WWCO\r\n",
+					"        ON WWSP.CountryId = WWCO.CountryId\r\n",
+					"    \r\n",
+					"    UNION\r\n",
+					"\r\n",
+					"    SELECT\r\n",
+					"         NWC.City AS City\r\n",
+					"        ,COALESCE(LSP.StateProvinceCode, 'N/A') AS StateProvinceCode\r\n",
+					"        ,COALESCE(LSP.StateProvince, 'N/A') AS StateProvince\r\n",
+					"        ,WWCO.CountryName AS Country\r\n",
+					"        ,WWCO.ISOAlpha3Code AS CountryCode\r\n",
+					"        ,NWC.PostalCode AS PostalCode\r\n",
+					"        ,NWC.Address AS Street\r\n",
+					"        ,COALESCE(CONCAT(NWC.Address, ', ',NWC.City, ', ', LSP.StateProvinceCode, CASE WHEN NWC.PostalCode IS NULL THEN '' ELSE ' '||NWC.PostalCode END), 'N/A') AS FullAddress\r\n",
+					"        ,COALESCE(WWSP.SalesTerritory, WWCO.CountryName) AS Region\r\n",
+					"        ,NWC.CustomerId AS CustomerId\r\n",
+					"        ,'Northwind' AS CustomerDataSource\r\n",
+					"    FROM NW_Customer NWC\r\n",
+					"    LEFT JOIN Lookup_CountryCode LCC\r\n",
+					"        ON NWC.Country = LCC.AltCountryName\r\n",
+					"    LEFT JOIN WWI_Country WWCO\r\n",
+					"        ON LCC.ISOCountryCode = WWCO.ISOAlpha3Code\r\n",
+					"    LEFT JOIN Lookup_StateProvince LSP\r\n",
+					"        ON NWC.Country = LSP.Country\r\n",
+					"        AND NWC.Region = LSP.Region\r\n",
+					"    LEFT JOIN WWI_StateProvince WWSP\r\n",
+					"        ON LSP.StateProvinceCode = WWSP.StateProvinceCode\r\n",
+					")\r\n",
+					"\r\n",
+					"--SHA leveraged to create \"unique\" identifier that remains consistent for fact creation\r\n",
+					"SELECT \r\n",
+					"    SHA(Street||City||StateProvinceCode||Country||PostalCode) AS CustomerLocationSHA\r\n",
+					"    ,* \r\n",
+					"FROM CTE_BASE "
+				],
+				"attachments": null,
+				"execution_count": 2
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"Populate bridge table required to map natural customer keys to the proper dimension keys for the FACT creation"
+				],
+				"attachments": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": true
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"DROP TABLE IF EXISTS BRIDGE_Customer_CustomerLocation;\r\n",
+					"\r\n",
+					"CREATE TABLE BRIDGE_Customer_CustomerLocation\r\n",
+					"USING Parquet\r\n",
+					"LOCATION \"abfss://termproject@jaknigh.dfs.core.windows.net/dw/BRIDGE_Customer_CustomerLocation\"\r\n",
+					"AS\r\n",
+					"SELECT DISTINCT \r\n",
+					"     CustomerLocationSHA\r\n",
+					"    ,CustomerId\r\n",
+					"    ,CustomerDataSource\r\n",
+					"FROM Customer_CustomerLocation;\r\n",
+					"\r\n",
+					"REFRESH TABLE BRIDGE_Customer_CustomerLocation;"
+				],
+				"attachments": null,
+				"execution_count": 3
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"Drop and recreate table leveraging ADLS as the underlying storage"
+				],
+				"attachments": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"DROP TABLE IF EXISTS DIM_CustomerLocation;\r\n",
+					"\r\n",
+					"CREATE TABLE DIM_CustomerLocation\r\n",
+					"USING Parquet\r\n",
+					"LOCATION \"abfss://termproject@jaknigh.dfs.core.windows.net/dw/DIM_CustomerLocation\"\r\n",
+					"AS\r\n",
+					"SELECT DISTINCT \r\n",
+					"         ROW_NUMBER() OVER(ORDER BY CustomerLocationSHA) AS DIM_CustomerLocationId\r\n",
+					"        ,City\r\n",
+					"        ,StateProvince\r\n",
+					"        ,StateProvinceCode\r\n",
+					"        ,Country\r\n",
+					"        ,CountryCode\r\n",
+					"        ,PostalCode\r\n",
+					"        ,Street\r\n",
+					"        ,FullAddress\r\n",
+					"        ,Region\r\n",
+					"        ,CustomerLocationSHA\r\n",
+					"FROM Customer_CustomerLocation\r\n",
+					"\r\n",
+					"UNION\r\n",
+					"\r\n",
+					"SELECT\r\n",
+					"     -1 AS DIM_CustomerId\r\n",
+					"    ,'N/A' AS City\r\n",
+					"    ,'N/A' AS StateProvince\r\n",
+					"    ,'N/A' AS StateProvinceCode\r\n",
+					"    ,'N/A' AS Country\r\n",
+					"    ,'N/A' AS CountryCode\r\n",
+					"    ,'N/A' AS PostalCode\r\n",
+					"    ,'N/A' AS Street\r\n",
+					"    ,'N/A' AS FullAddress\r\n",
+					"    ,'N/A' AS Region\r\n",
+					"    ,'N/A' AS CustomerLocationSHA;\r\n",
+					"\r\n",
+					"REFRESH TABLE DIM_CustomerLocation;"
+				],
+				"attachments": null,
+				"execution_count": 5
+			}
+		]
+	}
+}

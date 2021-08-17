@@ -1,0 +1,376 @@
+{
+	"name": "0101_Load_Intake",
+	"properties": {
+		"activities": [
+			{
+				"name": "Read XML",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "JsonSource",
+						"storeSettings": {
+							"type": "AzureBlobFSReadSettings",
+							"recursive": true,
+							"enablePartitionDiscovery": false
+						},
+						"formatSettings": {
+							"type": "JsonReadSettings"
+						}
+					},
+					"dataset": {
+						"referenceName": "Parameters_JSON",
+						"type": "DatasetReference"
+					},
+					"firstRowOnly": false
+				}
+			},
+			{
+				"name": "Set XMLArray",
+				"type": "SetVariable",
+				"dependsOn": [
+					{
+						"activity": "Read XML",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "XMLArray",
+					"value": {
+						"value": "@activity('Read XML').output.value[0].intake",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "For Each Child Node",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "Set XMLArray",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@variables('XMLArray')",
+						"type": "Expression"
+					},
+					"isSequential": true,
+					"activities": [
+						{
+							"name": "Copy_SQL_to_ADLS",
+							"type": "Copy",
+							"dependsOn": [
+								{
+									"activity": "If File Exists",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "7.00:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "AzureSqlSource",
+									"additionalColumns": [
+										{
+											"name": "JobStartDateTime_UTC",
+											"value": {
+												"value": "@utcnow()",
+												"type": "Expression"
+											}
+										},
+										{
+											"name": "JobRunId",
+											"value": {
+												"value": "@pipeline().RunId",
+												"type": "Expression"
+											}
+										}
+									],
+									"queryTimeout": "02:00:00",
+									"partitionOption": "None"
+								},
+								"sink": {
+									"type": "ParquetSink",
+									"storeSettings": {
+										"type": "AzureBlobFSWriteSettings"
+									},
+									"formatSettings": {
+										"type": "ParquetWriteSettings"
+									}
+								},
+								"enableStaging": false,
+								"translator": {
+									"type": "TabularTranslator",
+									"typeConversion": true,
+									"typeConversionSettings": {
+										"allowDataTruncation": true,
+										"treatBooleanAsNumber": false
+									}
+								}
+							},
+							"inputs": [
+								{
+									"referenceName": "Dataset_SQL",
+									"type": "DatasetReference",
+									"parameters": {
+										"Source_Schema": {
+											"value": "@item().SQL_Schema",
+											"type": "Expression"
+										},
+										"Source_Table": {
+											"value": "@item().SQL_Table",
+											"type": "Expression"
+										},
+										"Source_Database": {
+											"value": "@item().SQL_Database",
+											"type": "Expression"
+										}
+									}
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "Dataset_ADLS",
+									"type": "DatasetReference",
+									"parameters": {
+										"Target_FileName": {
+											"value": "@variables('ADLS_CurrentFileName')",
+											"type": "Expression"
+										},
+										"Target_Directory": "intake"
+									}
+								}
+							]
+						},
+						{
+							"name": "If File Exists",
+							"type": "IfCondition",
+							"dependsOn": [
+								{
+									"activity": "ADLS_FileExists",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"expression": {
+									"value": "@activity('ADLS_FileExists').output.exists",
+									"type": "Expression"
+								},
+								"ifTrueActivities": [
+									{
+										"name": "Copy_Current_to_Hist",
+										"type": "Copy",
+										"dependsOn": [],
+										"policy": {
+											"timeout": "7.00:00:00",
+											"retry": 0,
+											"retryIntervalInSeconds": 30,
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"source": {
+												"type": "ParquetSource",
+												"storeSettings": {
+													"type": "AzureBlobFSReadSettings",
+													"recursive": true,
+													"enablePartitionDiscovery": false
+												}
+											},
+											"sink": {
+												"type": "ParquetSink",
+												"storeSettings": {
+													"type": "AzureBlobFSWriteSettings"
+												},
+												"formatSettings": {
+													"type": "ParquetWriteSettings"
+												}
+											},
+											"enableStaging": false,
+											"translator": {
+												"type": "TabularTranslator",
+												"typeConversion": true,
+												"typeConversionSettings": {
+													"allowDataTruncation": true,
+													"treatBooleanAsNumber": false
+												}
+											}
+										},
+										"inputs": [
+											{
+												"referenceName": "Dataset_ADLS",
+												"type": "DatasetReference",
+												"parameters": {
+													"Target_FileName": {
+														"value": "@variables('ADLS_CurrentFileName')",
+														"type": "Expression"
+													},
+													"Target_Directory": "intake"
+												}
+											}
+										],
+										"outputs": [
+											{
+												"referenceName": "Dataset_ADLS",
+												"type": "DatasetReference",
+												"parameters": {
+													"Target_FileName": {
+														"value": "@variables('ADLS_HistoryFileName')",
+														"type": "Expression"
+													},
+													"Target_Directory": {
+														"value": "intake",
+														"type": "Expression"
+													}
+												}
+											}
+										]
+									}
+								]
+							}
+						},
+						{
+							"name": "ADLS_FileExists",
+							"type": "GetMetadata",
+							"dependsOn": [
+								{
+									"activity": "Set HistoryFileName",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"policy": {
+								"timeout": "7.00:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"dataset": {
+									"referenceName": "Dataset_ADLS",
+									"type": "DatasetReference",
+									"parameters": {
+										"Target_FileName": {
+											"value": "@variables('ADLS_CurrentFileName')",
+											"type": "Expression"
+										},
+										"Target_Directory": "intake"
+									}
+								},
+								"fieldList": [
+									"exists"
+								],
+								"storeSettings": {
+									"type": "AzureBlobFSReadSettings",
+									"recursive": true,
+									"enablePartitionDiscovery": false
+								}
+							}
+						},
+						{
+							"name": "Set ADLS_FileName",
+							"type": "SetVariable",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "ADLS_FileName",
+								"value": {
+									"value": "@concat(item().SQL_SystemName,'_',item().SQL_Schema,'_',item().SQL_Table)",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "Set CurrentFileName",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "Set ADLS_FileName",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "ADLS_CurrentFileName",
+								"value": {
+									"value": "@concat(variables('ADLS_FileName'),'/current/',variables('ADLS_FileName'))",
+									"type": "Expression"
+								}
+							}
+						},
+						{
+							"name": "Set HistoryFileName",
+							"type": "SetVariable",
+							"dependsOn": [
+								{
+									"activity": "Set CurrentFileName",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"variableName": "ADLS_HistoryFileName",
+								"value": {
+									"value": "@concat(variables('ADLS_FileName'),formatDateTime(utcnow(),'/yyyy/MM/dd/'),variables('ADLS_FileName'))",
+									"type": "Expression"
+								}
+							}
+						}
+					]
+				}
+			}
+		],
+		"variables": {
+			"XMLArray": {
+				"type": "Array"
+			},
+			"ADLS_FileName": {
+				"type": "String"
+			},
+			"ADLS_CurrentFileName": {
+				"type": "String"
+			},
+			"ADLS_HistoryFileName": {
+				"type": "String"
+			}
+		},
+		"annotations": [],
+		"lastPublishTime": "2021-08-12T05:44:19Z"
+	},
+	"type": "Microsoft.Synapse/workspaces/pipelines"
+}

@@ -1,0 +1,36 @@
+{
+	"name": "Dataset_ADLS",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "jaknigh-termproject-WorkspaceDefaultStorage",
+			"type": "LinkedServiceReference"
+		},
+		"parameters": {
+			"Target_FileName": {
+				"type": "String"
+			},
+			"Target_Directory": {
+				"type": "string"
+			}
+		},
+		"annotations": [],
+		"type": "Parquet",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobFSLocation",
+				"fileName": {
+					"value": "@concat(dataset().Target_FileName,'.parquet')",
+					"type": "Expression"
+				},
+				"folderPath": {
+					"value": "@dataset().Target_Directory",
+					"type": "Expression"
+				},
+				"fileSystem": "termproject"
+			},
+			"compressionCodec": "snappy"
+		},
+		"schema": []
+	},
+	"type": "Microsoft.Synapse/workspaces/datasets"
+}

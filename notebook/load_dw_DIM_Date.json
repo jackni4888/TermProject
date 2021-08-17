@@ -1,0 +1,210 @@
+{
+	"name": "load_dw_DIM_Date",
+	"properties": {
+		"folder": {
+			"name": "load_dw"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "sparkpool",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"synapse_widget": {
+				"version": "0.1"
+			},
+			"kernelspec": {
+				"name": "synapse_sparksql",
+				"display_name": "Synapse SQL"
+			},
+			"language_info": {
+				"name": "sql"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/b4f891dc-d700-4853-9305-93cd43d90bc4/resourceGroups/AzureStudent/providers/Microsoft.Synapse/workspaces/jaknigh-termproject/bigDataPools/sparkpool",
+				"name": "sparkpool",
+				"type": "Spark",
+				"endpoint": "https://jaknigh-termproject.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/sparkpool",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "2.4",
+				"nodeCount": 10,
+				"cores": 4,
+				"memory": 28,
+				"extraHeader": null
+			}
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"Python script to populate initial list of relevant date values.  Likely this would need to be updated once a year, and restrict to only the values the business is focused on instead of 1990 forward. "
+				],
+				"attachments": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "python"
+					},
+					"collapsed": true
+				},
+				"source": [
+					"%%pyspark\r\n",
+					"'''\r\n",
+					"    Define function to generate a dataframe of dates taking input of start and end date.  \r\n",
+					"'''\r\n",
+					"from pyspark.sql import SparkSession, Row\r\n",
+					"from pyspark.sql.functions import to_date\r\n",
+					"from datetime import datetime, timedelta, date\r\n",
+					"def generate_DateDF(start, stop):\r\n",
+					"\r\n",
+					"    dateValue = datetime.strptime(start, \"%Y-%m-%d\").date()\r\n",
+					"    dateEnd = datetime.strptime(stop, \"%Y-%m-%d\").date()\r\n",
+					"    dateList = [{\"FiscalDate\":dateValue}]\r\n",
+					"\r\n",
+					"    while dateValue != dateEnd:\r\n",
+					"        dateValue += timedelta(days=1)\r\n",
+					"        dateList.append({\"FiscalDate\":dateValue})\r\n",
+					"\r\n",
+					"    spark = SparkSession.builder.getOrCreate()\r\n",
+					"    \r\n",
+					"    #create dataframe of datetime values\r\n",
+					"    df = spark.createDataFrame([Row(**i) for i in dateList])\r\n",
+					"    return df"
+				],
+				"attachments": null,
+				"execution_count": 1
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"microsoft": {
+						"language": "python"
+					},
+					"collapsed": true
+				},
+				"source": [
+					"%%pyspark\r\n",
+					"#call generate_DateDF function\r\n",
+					"pEndDate = str(date.today().year + 3) + \"-12-31\"\r\n",
+					"pStartDate = \"1990-01-01\"\r\n",
+					"df = generate_DateDF(pStartDate, pEndDate)\r\n",
+					"\r\n",
+					"#create view to be leveraged by spark sql\r\n",
+					"df.createOrReplaceTempView( \"STAGE_DIM_Date\")"
+				],
+				"attachments": null,
+				"execution_count": null
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"Drop and recreate table leveraging ADLS as the underlying storage"
+				],
+				"attachments": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": true
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"DROP TABLE IF EXISTS DIM_Date;\r\n",
+					"\r\n",
+					"CREATE TABLE DIM_Date\r\n",
+					"USING Parquet\r\n",
+					"LOCATION \"abfss://termproject@jaknigh.dfs.core.windows.net/dw/DIM_Date\"\r\n",
+					"AS\r\n",
+					"WITH RelativeDates AS (\r\n",
+					"    SELECT\r\n",
+					"     FiscalDate\r\n",
+					"    ,CAST(DATE_FORMAT(FiscalDate, 'yyyyMM') - DATE_FORMAT(CURRENT_DATE(), 'yyyyMM') AS INT) AS MonthDiff\r\n",
+					"    ,CAST(DATE_FORMAT(FiscalDate, 'yyyy') - DATE_FORMAT(CURRENT_DATE(), 'yyyy') AS INT) AS YearDiff\r\n",
+					"    FROM STAGE_DIM_Date\r\n",
+					")\r\n",
+					"SELECT\r\n",
+					"     CAST(DATE_FORMAT(FiscalDate, 'yyyyMMdd') AS INT) AS DIM_DateId\r\n",
+					"    ,FiscalDate\r\n",
+					"    ,CAST(DATE_FORMAT(FiscalDate, 'yyyy') AS INT) AS CalendarYear\r\n",
+					"    ,DATE_FORMAT(FiscalDate, 'MMMM') AS CalendarMonthName\r\n",
+					"    ,CAST(DATE_FORMAT(FiscalDate, 'M') AS INT) AS CalendarMonth\r\n",
+					"    ,CAST(DATE_FORMAT(FiscalDate, 'd') AS INT) AS CalendarDay\r\n",
+					"    ,CONCAT('FY', DATE_FORMAT(FiscalDate, 'yy')) AS FiscalYear\r\n",
+					"    ,DATE_FORMAT(FiscalDate, 'MMMM yyyy')  AS FiscalMonth\r\n",
+					"    ,CASE   WHEN MonthDiff > 0 THEN CONCAT('CM + ', MonthDiff)\r\n",
+					"            WHEN MonthDiff < 0 THEN CONCAT('CM ', MonthDiff)\r\n",
+					"            WHEN MonthDiff = 0 THEN CONCAT('CM')\r\n",
+					"    END AS RelativeMonth\r\n",
+					"    ,CASE   WHEN YearDiff > 0 THEN CONCAT('CY + ', YearDiff)\r\n",
+					"            WHEN YearDiff < 0 THEN CONCAT('CY ', YearDiff)\r\n",
+					"            WHEN YearDiff = 0 THEN CONCAT('CY')\r\n",
+					"    END AS RelativeYear\r\n",
+					"FROM RelativeDates;\r\n",
+					"\r\n",
+					"REFRESH TABLE DIM_Date;"
+				],
+				"attachments": null,
+				"execution_count": 2
+			}
+		]
+	}
+}

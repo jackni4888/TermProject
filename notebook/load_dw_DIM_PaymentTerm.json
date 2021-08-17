@@ -1,0 +1,142 @@
+{
+	"name": "load_dw_DIM_PaymentTerm",
+	"properties": {
+		"folder": {
+			"name": "load_dw"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "sparkpool",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"synapse_widget": {
+				"version": "0.1"
+			},
+			"kernelspec": {
+				"name": "synapse_sparksql",
+				"display_name": "Synapse SQL"
+			},
+			"language_info": {
+				"name": "sql"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/b4f891dc-d700-4853-9305-93cd43d90bc4/resourceGroups/AzureStudent/providers/Microsoft.Synapse/workspaces/jaknigh-termproject/bigDataPools/sparkpool",
+				"name": "sparkpool",
+				"type": "Spark",
+				"endpoint": "https://jaknigh-termproject.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/sparkpool",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "2.4",
+				"nodeCount": 10,
+				"cores": 4,
+				"memory": 28,
+				"extraHeader": null
+			}
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"Static dataset.  If dataset is managed by business, this should be moved to a metadata tool that business users can leverage"
+				],
+				"attachments": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": true
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"CREATE OR REPLACE TEMPORARY VIEW DIM_PaymentTerm_Stage AS\r\n",
+					"SELECT -1 AS DIM_PaymentTermId, 0 AS PaymentTerm UNION\r\n",
+					"SELECT 1 AS DIM_PaymentTermId, 30 AS PaymentTerm UNION\r\n",
+					"SELECT 2 AS DIM_PaymentTermId, 45 AS PaymentTerm UNION\r\n",
+					"SELECT 3 AS DIM_PaymentTermId, 60 AS PaymentTerm UNION\r\n",
+					"SELECT 4 AS DIM_PaymentTermId, 90 AS PaymentTerm UNION\r\n",
+					"SELECT 5 AS DIM_PaymentTermId, 180 AS PaymentTerm"
+				],
+				"attachments": null,
+				"execution_count": 5
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"Drop and recreate table leveraging ADLS as the underlying storage"
+				],
+				"attachments": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": true
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"DROP TABLE IF EXISTS DIM_PaymentTerm;\r\n",
+					"\r\n",
+					"CREATE TABLE DIM_PaymentTerm\r\n",
+					"USING Parquet\r\n",
+					"LOCATION \"abfss://termproject@jaknigh.dfs.core.windows.net/dw/DIM_PaymentTerm\"\r\n",
+					"AS\r\n",
+					"SELECT\r\n",
+					"     DIM_PaymentTermId\r\n",
+					"    ,PaymentTerm\r\n",
+					"    ,CASE WHEN PaymentTerm > 60 THEN 'Yes' ELSE 'No' END AS LongTermFlag\r\n",
+					"FROM DIM_PaymentTerm_Stage;\r\n",
+					"\r\n",
+					"REFRESH TABLE DIM_PaymentTerm;"
+				],
+				"attachments": null,
+				"execution_count": 7
+			}
+		]
+	}
+}

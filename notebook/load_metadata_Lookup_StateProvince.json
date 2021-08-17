@@ -1,0 +1,142 @@
+{
+	"name": "load_metadata_Lookup_StateProvince",
+	"properties": {
+		"folder": {
+			"name": "load_metadata"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "sparkpool",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"synapse_widget": {
+				"version": "0.1"
+			},
+			"kernelspec": {
+				"name": "synapse_sparksql",
+				"display_name": "Synapse SQL"
+			},
+			"language_info": {
+				"name": "sql"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/b4f891dc-d700-4853-9305-93cd43d90bc4/resourceGroups/AzureStudent/providers/Microsoft.Synapse/workspaces/jaknigh-termproject/bigDataPools/sparkpool",
+				"name": "sparkpool",
+				"type": "Spark",
+				"endpoint": "https://jaknigh-termproject.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/sparkpool",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "2.4",
+				"nodeCount": 10,
+				"cores": 4,
+				"memory": 28,
+				"extraHeader": null
+			}
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"Static dataset.  This is a data cleansing lookup file that should be replaced by a DQS type tool. "
+				],
+				"attachments": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"CREATE OR REPLACE TEMPORARY VIEW Lookup_StateProvince_Stage AS\r\n",
+					"SELECT 'USA' AS Country, 'AK' AS Region, 'AK' AS StateProvinceCode, 'Alaska' AS StateProvince UNION\r\n",
+					"SELECT 'Canada' AS Country, 'BC' AS Region, 'BC' AS StateProvinceCode, 'British Columbia' AS StateProvince UNION\r\n",
+					"SELECT 'USA' AS Country, 'CA' AS Region, 'CA' AS StateProvinceCode, 'California' AS StateProvince UNION\r\n",
+					"SELECT 'Ireland' AS Country, 'Co. Cork' AS Region, 'IE-CO' AS StateProvinceCode, 'County Cork' AS StateProvince UNION\r\n",
+					"SELECT 'Venezuela' AS Country, 'DF' AS Region, 'A' AS StateProvinceCode, 'Distrito Federal' AS StateProvince UNION\r\n",
+					"SELECT 'USA' AS Country, 'ID' AS Region, 'ID' AS StateProvinceCode, 'Idaho' AS StateProvince UNION\r\n",
+					"SELECT 'UK' AS Country, 'Isle of Wight' AS Region, 'IoW' AS StateProvinceCode, 'Isle of Wight' AS StateProvince UNION\r\n",
+					"SELECT 'Venezuela' AS Country, 'Lara' AS Region, 'K' AS StateProvinceCode, 'Lara' AS StateProvince UNION\r\n",
+					"SELECT 'USA' AS Country, 'MT' AS Region, 'MT' AS StateProvinceCode, 'Montana' AS StateProvince UNION\r\n",
+					"SELECT 'USA' AS Country, 'NM' AS Region, 'NM' AS StateProvinceCode, 'New Mexico' AS StateProvince UNION\r\n",
+					"SELECT 'Venezuela' AS Country, 'Nueva Esparta' AS Region, 'O' AS StateProvinceCode, 'Nueva Esparta' AS StateProvince UNION\r\n",
+					"SELECT 'USA' AS Country, 'OR' AS Region, 'OR' AS StateProvinceCode, 'Oregon' AS StateProvince UNION\r\n",
+					"SELECT 'Canada' AS Country, 'Québec' AS Region, 'QC' AS StateProvinceCode, 'Québec' AS StateProvince UNION\r\n",
+					"SELECT 'Brazil' AS Country, 'RJ' AS Region, 'RJ' AS StateProvinceCode, 'Rio de Janeiro' AS StateProvince UNION\r\n",
+					"SELECT 'Brazil' AS Country, 'SP' AS Region, 'SP' AS StateProvinceCode, 'São Paulo' AS StateProvince UNION\r\n",
+					"SELECT 'Venezuela' AS Country, 'Táchira' AS Region, 'S' AS StateProvinceCode, 'Táchira' AS StateProvince UNION\r\n",
+					"SELECT 'USA' AS Country, 'WA' AS Region, 'USA' AS StateProvinceCode, 'Washington' AS StateProvince UNION\r\n",
+					"SELECT 'USA' AS Country, 'WY' AS Region, 'USA' AS StateProvinceCode, 'Wyoming' AS StateProvince\r\n",
+					""
+				],
+				"attachments": null,
+				"execution_count": 1
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"DROP TABLE IF EXISTS Lookup_StateProvince;\r\n",
+					"\r\n",
+					"CREATE TABLE Lookup_StateProvince\r\n",
+					"USING Parquet\r\n",
+					"LOCATION \"abfss://termproject@jaknigh.dfs.core.windows.net/metadata/Lookup_StateProvince\"\r\n",
+					"AS\r\n",
+					"SELECT\r\n",
+					"     Country\r\n",
+					"    ,Region\r\n",
+					"    ,StateProvinceCode\r\n",
+					"    ,StateProvince\r\n",
+					"FROM Lookup_StateProvince_Stage;\r\n",
+					"\r\n",
+					"REFRESH TABLE Lookup_StateProvince;"
+				],
+				"attachments": null,
+				"execution_count": null
+			}
+		]
+	}
+}

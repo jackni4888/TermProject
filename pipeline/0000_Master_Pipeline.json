@@ -1,0 +1,83 @@
+{
+	"name": "0000_Master_Pipeline",
+	"properties": {
+		"activities": [
+			{
+				"name": "0101_Load_Intake",
+				"type": "ExecutePipeline",
+				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "0101_Load_Intake",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true
+				}
+			},
+			{
+				"name": "0201_Load_Metadata",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "0101_Load_Intake",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "0201_Load_Metadata",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true
+				}
+			},
+			{
+				"name": "0301_Load_DW",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "0201_Load_Metadata",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "0301_Load_DW",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true
+				}
+			},
+			{
+				"name": "0401_Process_Tabular_Model",
+				"type": "ExecutePipeline",
+				"dependsOn": [
+					{
+						"activity": "0301_Load_DW",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"pipeline": {
+						"referenceName": "0401_Process_Tabular_Model",
+						"type": "PipelineReference"
+					},
+					"waitOnCompletion": true
+				}
+			}
+		],
+		"annotations": [],
+		"lastPublishTime": "2021-08-14T05:56:57Z"
+	},
+	"type": "Microsoft.Synapse/workspaces/pipelines"
+}

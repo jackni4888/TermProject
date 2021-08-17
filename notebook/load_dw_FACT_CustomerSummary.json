@@ -1,0 +1,418 @@
+{
+	"name": "load_dw_FACT_CustomerSummary",
+	"properties": {
+		"folder": {
+			"name": "load_dw"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "sparkpool",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"synapse_widget": {
+				"version": "0.1"
+			},
+			"kernelspec": {
+				"name": "synapse_sparksql",
+				"display_name": "Synapse SQL"
+			},
+			"language_info": {
+				"name": "sql"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/b4f891dc-d700-4853-9305-93cd43d90bc4/resourceGroups/AzureStudent/providers/Microsoft.Synapse/workspaces/jaknigh-termproject/bigDataPools/sparkpool",
+				"name": "sparkpool",
+				"type": "Spark",
+				"endpoint": "https://jaknigh-termproject.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/sparkpool",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "2.4",
+				"nodeCount": 10,
+				"cores": 4,
+				"memory": 28,
+				"extraHeader": null
+			}
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"Initialize tables required to populate final output. Views leveraged to reduce width of tables in memory"
+				],
+				"attachments": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": true
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"CREATE OR REPLACE TEMPORARY VIEW DIM_Customer AS\r\n",
+					"SELECT\r\n",
+					"     DIM_CustomerId\r\n",
+					"    ,NaturalCustomerId\r\n",
+					"    ,CustomerDataSource\r\n",
+					"FROM parquet.`abfss://termproject@jaknigh.dfs.core.windows.net/dw/DIM_Customer/`;\r\n",
+					"\r\n",
+					"CREATE OR REPLACE TEMPORARY VIEW DIM_CustomerLocation AS\r\n",
+					"SELECT\r\n",
+					"     DIM_CustomerLocationId\r\n",
+					"    ,CustomerLocationSHA\r\n",
+					"FROM parquet.`abfss://termproject@jaknigh.dfs.core.windows.net/dw/DIM_CustomerLocation/`;\r\n",
+					"\r\n",
+					"CREATE OR REPLACE TEMPORARY VIEW DIM_PaymentTerm AS\r\n",
+					"SELECT\r\n",
+					"     DIM_PaymentTermId\r\n",
+					"    ,PaymentTerm\r\n",
+					"FROM parquet.`abfss://termproject@jaknigh.dfs.core.windows.net/dw/DIM_PaymentTerm/`;\r\n",
+					"\r\n",
+					"CREATE OR REPLACE TEMPORARY VIEW WWI_Customer AS\r\n",
+					"SELECT\r\n",
+					"     CustomerId\r\n",
+					"    ,PaymentDays\r\n",
+					"FROM parquet.`abfss://termproject@jaknigh.dfs.core.windows.net/intake/WWI_Sales_v_Customers/current/`;\r\n",
+					"\r\n",
+					"CREATE OR REPLACE TEMPORARY VIEW BRIDGE_Customer_CustomerLocation AS\r\n",
+					"SELECT\r\n",
+					"     CustomerLocationSHA\r\n",
+					"    ,CustomerId\r\n",
+					"    ,CustomerDataSource\r\n",
+					"FROM parquet.`abfss://termproject@jaknigh.dfs.core.windows.net/dw/BRIDGE_Customer_CustomerLocation/`;\r\n",
+					"\r\n",
+					"CREATE OR REPLACE TEMPORARY VIEW DIM_Date AS\r\n",
+					"SELECT\r\n",
+					"     DIM_DateId\r\n",
+					"    ,FiscalDate\r\n",
+					"FROM parquet.`abfss://termproject@jaknigh.dfs.core.windows.net/dw/DIM_Date/`;\r\n",
+					"\r\n",
+					"CREATE OR REPLACE TEMPORARY VIEW WWI_Order AS\r\n",
+					"SELECT\r\n",
+					"     OrderId\r\n",
+					"    ,CustomerId\r\n",
+					"    ,OrderDate\r\n",
+					"FROM parquet.`abfss://termproject@jaknigh.dfs.core.windows.net/intake/WWI_Sales_Orders/current/`;\r\n",
+					"\r\n",
+					"CREATE OR REPLACE TEMPORARY VIEW WWI_OrderLine AS\r\n",
+					"SELECT\r\n",
+					"      OrderLineId\r\n",
+					"     ,OrderId\r\n",
+					"     ,StockItemId\r\n",
+					"     ,Quantity\r\n",
+					"     ,UnitPrice\r\n",
+					"     ,TaxRate\r\n",
+					"FROM parquet.`abfss://termproject@jaknigh.dfs.core.windows.net/intake/WWI_Sales_OrderLines/current/`;\r\n",
+					"\r\n",
+					"CREATE OR REPLACE TEMPORARY VIEW WWI_StockItem AS\r\n",
+					"SELECT\r\n",
+					"      StockItemId\r\n",
+					"     ,TypicalWeightPerUnit\r\n",
+					"FROM parquet.`abfss://termproject@jaknigh.dfs.core.windows.net/intake/WWI_Warehouse_StockItems/current/`;\r\n",
+					"\r\n",
+					"CREATE OR REPLACE TEMPORARY VIEW NW_Customer AS\r\n",
+					"SELECT\r\n",
+					"     CustomerId\r\n",
+					"    ,CompanyName\r\n",
+					"    ,ContactName\r\n",
+					"FROM parquet.`abfss://termproject@jaknigh.dfs.core.windows.net/intake/NW_dbo_Customers/current/`;\r\n",
+					"\r\n",
+					"CREATE OR REPLACE TEMPORARY VIEW NW_Order AS\r\n",
+					"SELECT\r\n",
+					"     OrderId\r\n",
+					"    ,CustomerId\r\n",
+					"    ,OrderDate\r\n",
+					"    ,Freight\r\n",
+					"FROM parquet.`abfss://termproject@jaknigh.dfs.core.windows.net/intake/NW_dbo_Orders/current/`;\r\n",
+					"\r\n",
+					"CREATE OR REPLACE TEMPORARY VIEW NW_OrderDetail AS\r\n",
+					"SELECT\r\n",
+					"     OrderId\r\n",
+					"    ,ProductId\r\n",
+					"    ,UnitPrice\r\n",
+					"    ,Quantity\r\n",
+					"    ,Discount\r\n",
+					"FROM parquet.`abfss://termproject@jaknigh.dfs.core.windows.net/intake/NW_dbo_OrderDetails/current/`;"
+				],
+				"attachments": null,
+				"execution_count": 36
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"Create view to support WWI aggregations - output should be in same schema as NW so that union below is clean"
+				],
+				"attachments": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": true
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"CREATE OR REPLACE TEMPORARY VIEW FACT_CustomerSummary_WWI_Base AS\r\n",
+					"WITH BASE_CTE AS (\r\n",
+					"SELECT\r\n",
+					"     DD.DIM_DateId\r\n",
+					"    ,DC.DIM_CustomerId\r\n",
+					"    ,1 AS DIM_DataSourceId\r\n",
+					"    ,DCL.DIM_CustomerLocationId\r\n",
+					"    ,DPT.DIM_PaymentTermId    \r\n",
+					"    ,WOL.Quantity\r\n",
+					"    ,ROUND(WOL.Quantity * WOL.UnitPrice, 2) AS BaseCost\r\n",
+					"    ,ROUND(WOL.Quantity * WOL.UnitPrice * WOL.TaxRate * .01, 2) AS TaxCost\r\n",
+					"    ,ROUND(WOL.Quantity * (WSI.TypicalWeightPerUnit * 3.5), 2) AS ShippingCost --force shipping costs based on weight per unit\r\n",
+					"FROM WWI_OrderLine WOL\r\n",
+					"LEFT JOIN WWI_Order WO\r\n",
+					"    ON WOL.OrderId = WO.OrderId\r\n",
+					"LEFT JOIN WWI_StockItem WSI\r\n",
+					"    ON WOL.StockItemId = WSI.StockItemId\r\n",
+					"LEFT JOIN DIM_Customer DC\r\n",
+					"    ON WO.CustomerId = DC.NaturalCustomerId AND DC.CustomerDataSource = 'Wide World Importers'\r\n",
+					"LEFT JOIN DIM_Date DD\r\n",
+					"    ON date_add(last_day(add_months(WO.OrderDate, -1)),1) = DD.FiscalDate --force all values to aggregate on first day of month\r\n",
+					"LEFT JOIN BRIDGE_Customer_CustomerLocation BCC\r\n",
+					"    ON DC.CustomerDataSource = BCC.CustomerDataSource\r\n",
+					"    AND DC.NaturalCustomerId = BCC.CustomerId\r\n",
+					"LEFT JOIN DIM_CustomerLocation DCL\r\n",
+					"    ON BCC.CustomerLocationSHA = DCL.CustomerLocationSHA\r\n",
+					"LEFT JOIN WWI_Customer WC\r\n",
+					"    ON WC.CustomerId = WO.CustomerId\r\n",
+					"LEFT JOIN DIM_PaymentTerm DPT\r\n",
+					"    ON WC.PaymentDays = DPT.PaymentTerm\r\n",
+					")\r\n",
+					"SELECT\r\n",
+					"     DIM_DateId\r\n",
+					"    ,DIM_CustomerId\r\n",
+					"    ,DIM_DataSourceId\r\n",
+					"    ,DIM_CustomerLocationId\r\n",
+					"    ,DIM_PaymentTermId\r\n",
+					"    ,SUM(Quantity) AS Quantity\r\n",
+					"    ,SUM(BaseCost) AS BaseCost\r\n",
+					"    ,SUM(TaxCost) AS TaxCost\r\n",
+					"    ,SUM(ShippingCost) AS ShippingCost\r\n",
+					"    ,SUM(BaseCost) + SUM(TaxCost) + SUM(ShippingCost) AS TotalCost\r\n",
+					"FROM BASE_CTE\r\n",
+					"GROUP BY \r\n",
+					"     DIM_DateId\r\n",
+					"    ,DIM_CustomerId\r\n",
+					"    ,DIM_DataSourceId\r\n",
+					"    ,DIM_CustomerLocationId\r\n",
+					"    ,DIM_PaymentTermId"
+				],
+				"attachments": null,
+				"execution_count": 37
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"Create view to support NW aggregations - output should be in same schema as WWI so that union below is clean"
+				],
+				"attachments": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": true
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"CREATE OR REPLACE TEMPORARY VIEW FACT_CustomerSummary_NW_Base AS\r\n",
+					"WITH BASE_CTE AS (\r\n",
+					"    SELECT\r\n",
+					"        DD.DIM_DateId\r\n",
+					"        ,DC.DIM_CustomerId\r\n",
+					"        ,2 AS DIM_DataSourceId\r\n",
+					"        ,DCL.DIM_CustomerLocationId\r\n",
+					"        ,-1 AS DIM_PaymentTermId --paymentterm not applicable for NW\r\n",
+					"        ,NWOD.Quantity\r\n",
+					"        ,ROUND(NWOD.Quantity * NWOD.UnitPrice, 2) AS BaseCost\r\n",
+					"        ,ROUND(NWOD.Quantity * NWOD.UnitPrice * NWOD.Discount, 2) AS TaxCost --create \"fake\" tax rate\r\n",
+					"        ,ROUND(NWOD.Quantity / SUM(NWOD.Quantity) OVER (PARTITION BY NWOD.Orderid) * NWO.Freight, 2) AS ShippingCost --allocate shipping costs to indv units\r\n",
+					"    FROM NW_OrderDetail NWOD\r\n",
+					"    LEFT JOIN NW_Order NWO\r\n",
+					"        ON NWOD.OrderId = NWO.OrderId\r\n",
+					"    LEFT JOIN DIM_Customer DC\r\n",
+					"        ON NWO.CustomerId = DC.NaturalCustomerId AND DC.CustomerDataSource = 'Northwind'\r\n",
+					"    LEFT JOIN DIM_Date DD\r\n",
+					"        ON date_add(last_day(add_months(NWO.OrderDate, -1)),1) = DD.FiscalDate --force all values to aggregate on first day of month\r\n",
+					"    LEFT JOIN BRIDGE_Customer_CustomerLocation BCC\r\n",
+					"        ON DC.CustomerDataSource = BCC.CustomerDataSource\r\n",
+					"        AND DC.NaturalCustomerId = BCC.CustomerId\r\n",
+					"    LEFT JOIN DIM_CustomerLocation DCL\r\n",
+					"        ON BCC.CustomerLocationSHA = DCL.CustomerLocationSHA\r\n",
+					"    LEFT JOIN WWI_Customer WC\r\n",
+					"        ON WC.CustomerId = NWO.CustomerId\r\n",
+					")\r\n",
+					"SELECT\r\n",
+					"     DIM_DateId\r\n",
+					"    ,DIM_CustomerId\r\n",
+					"    ,DIM_DataSourceId\r\n",
+					"    ,DIM_CustomerLocationId\r\n",
+					"    ,DIM_PaymentTermId\r\n",
+					"    ,SUM(Quantity) AS Quantity\r\n",
+					"    ,SUM(BaseCost) AS BaseCost\r\n",
+					"    ,SUM(TaxCost) AS TaxCost\r\n",
+					"    ,SUM(ShippingCost) AS ShippingCost\r\n",
+					"    ,SUM(BaseCost) + SUM(TaxCost) + SUM(ShippingCost) AS TotalCost\r\n",
+					"FROM BASE_CTE\r\n",
+					"GROUP BY \r\n",
+					"     DIM_DateId\r\n",
+					"    ,DIM_CustomerId\r\n",
+					"    ,DIM_DataSourceId\r\n",
+					"    ,DIM_CustomerLocationId\r\n",
+					"    ,DIM_PaymentTermId"
+				],
+				"attachments": null,
+				"execution_count": 38
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"Drop and recreate table leveraging ADLS as the underlying storage"
+				],
+				"attachments": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": true
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"DROP TABLE IF EXISTS FACT_CustomerSummary;\r\n",
+					"\r\n",
+					"CREATE TABLE FACT_CustomerSummary\r\n",
+					"USING Parquet\r\n",
+					"LOCATION \"abfss://termproject@jaknigh.dfs.core.windows.net/dw/FACT_CustomerSummary\"\r\n",
+					"AS\r\n",
+					"WITH FACT_CustomerSummary_Stage AS \r\n",
+					"(\r\n",
+					"    SELECT\r\n",
+					"        DIM_DateId\r\n",
+					"        ,DIM_CustomerId\r\n",
+					"        ,DIM_DataSourceId\r\n",
+					"        ,DIM_CustomerLocationId\r\n",
+					"        ,DIM_PaymentTermId\r\n",
+					"        ,Quantity\r\n",
+					"        ,BaseCost\r\n",
+					"        ,TaxCost\r\n",
+					"        ,ShippingCost\r\n",
+					"        ,TotalCost\r\n",
+					"    FROM FACT_CustomerSummary_WWI_Base\r\n",
+					"    UNION \r\n",
+					"    SELECT\r\n",
+					"        DIM_DateId\r\n",
+					"        ,DIM_CustomerId\r\n",
+					"        ,DIM_DataSourceId\r\n",
+					"        ,DIM_CustomerLocationId\r\n",
+					"        ,DIM_PaymentTermId\r\n",
+					"        ,Quantity\r\n",
+					"        ,BaseCost\r\n",
+					"        ,TaxCost\r\n",
+					"        ,ShippingCost\r\n",
+					"        ,TotalCost\r\n",
+					"    FROM FACT_CustomerSummary_NW_Base\r\n",
+					")\r\n",
+					"SELECT\r\n",
+					"     DIM_DateId\r\n",
+					"    ,DIM_CustomerId\r\n",
+					"    ,DIM_CustomerLocationId\r\n",
+					"    ,DIM_PaymentTermId\r\n",
+					"    ,DIM_DataSourceId\r\n",
+					"    ,SUM(ShippingCost) AS ShippingCost\r\n",
+					"    ,SUM(TotalCost) AS TotalCost\r\n",
+					"    ,SUM(Quantity) AS Quantity\r\n",
+					"FROM FACT_CustomerSummary_Stage\r\n",
+					"GROUP BY \r\n",
+					"    DIM_DateId\r\n",
+					"    ,DIM_CustomerId\r\n",
+					"    ,DIM_CustomerLocationId\r\n",
+					"    ,DIM_PaymentTermId\r\n",
+					"    ,DIM_DataSourceId;\r\n",
+					"\r\n",
+					"REFRESH TABLE FACT_CustomerSummary;"
+				],
+				"attachments": null,
+				"execution_count": 39
+			}
+		]
+	}
+}

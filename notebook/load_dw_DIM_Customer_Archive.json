@@ -1,0 +1,204 @@
+{
+	"name": "load_dw_DIM_Customer_Archive",
+	"properties": {
+		"folder": {
+			"name": "Testing"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "sparkpool",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"synapse_widget": {
+				"version": "0.1"
+			},
+			"kernelspec": {
+				"name": "synapse_sparksql",
+				"display_name": "Synapse SQL"
+			},
+			"language_info": {
+				"name": "sql"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/b4f891dc-d700-4853-9305-93cd43d90bc4/resourceGroups/AzureStudent/providers/Microsoft.Synapse/workspaces/jaknigh-termproject/bigDataPools/sparkpool",
+				"name": "sparkpool",
+				"type": "Spark",
+				"endpoint": "https://jaknigh-termproject.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/sparkpool",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "2.4",
+				"nodeCount": 10,
+				"cores": 4,
+				"memory": 28,
+				"extraHeader": null
+			}
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"Initialize tables required to populate final output. Views leveraged to reduce width of tables in memory"
+				],
+				"attachments": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": true
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"CREATE OR REPLACE TEMPORARY VIEW WWI_Customer AS\r\n",
+					"SELECT\r\n",
+					"     CustomerId\r\n",
+					"    ,CustomerName\r\n",
+					"    ,CustomerCategoryId\r\n",
+					"    ,PrimaryContactPersonId\r\n",
+					"FROM parquet.`abfss://termproject@jaknigh.dfs.core.windows.net/intake/WWI_Sales_v_Customers/current/`;\r\n",
+					"\r\n",
+					"CREATE OR REPLACE TEMPORARY VIEW WWI_CustomerCategory AS\r\n",
+					"SELECT\r\n",
+					"     CustomerCategoryId\r\n",
+					"    ,CustomerCategoryName\r\n",
+					"FROM parquet.`abfss://termproject@jaknigh.dfs.core.windows.net/intake/WWI_Sales_CustomerCategories/current/`;\r\n",
+					"\r\n",
+					"CREATE OR REPLACE TEMPORARY VIEW WWI_Person AS\r\n",
+					"SELECT\r\n",
+					"     PersonId\r\n",
+					"    ,FullName\r\n",
+					"FROM parquet.`abfss://termproject@jaknigh.dfs.core.windows.net/intake/WWI_Application_People/current/`;\r\n",
+					"\r\n",
+					"CREATE OR REPLACE TEMPORARY VIEW NW_Customer AS\r\n",
+					"SELECT\r\n",
+					"     CustomerId\r\n",
+					"    ,CompanyName\r\n",
+					"    ,ContactName\r\n",
+					"FROM parquet.`abfss://termproject@jaknigh.dfs.core.windows.net/intake/NW_dbo_Customers/current/`;"
+				],
+				"attachments": null,
+				"execution_count": 9
+			},
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"Drop and recreate table leveraging ADLS as the underlying storage"
+				],
+				"attachments": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"DROP TABLE IF EXISTS DIM_Customer;\r\n",
+					"\r\n",
+					"CREATE TABLE DIM_Customer\r\n",
+					"USING Parquet\r\n",
+					"LOCATION \"abfss://termproject@jaknigh.dfs.core.windows.net/dw/DIM_Customer\"\r\n",
+					"AS\r\n",
+					"WITH Customer_Stage AS\r\n",
+					"(\r\n",
+					"    SELECT \r\n",
+					"         WWC.CustomerId AS NaturalCustomerId\r\n",
+					"        ,'Wide World Importers' AS CustomerDataSource\r\n",
+					"        ,WWC.CustomerName AS Customer\r\n",
+					"        ,WWCC.CustomerCategoryName AS CustomerCategory\r\n",
+					"        ,WWP.FullName AS PrimaryContact\r\n",
+					"    FROM WWI_Customer WWC\r\n",
+					"    LEFT JOIN WWI_CustomerCategory WWCC\r\n",
+					"        ON WWC.CustomerCategoryId = WWCC.CustomerCategoryId\r\n",
+					"    LEFT JOIN WWI_Person WWP\r\n",
+					"        ON WWC.PrimaryContactPersonId = WWP.PersonId\r\n",
+					"    \r\n",
+					"    UNION\r\n",
+					"\r\n",
+					"    SELECT\r\n",
+					"         NWC.CustomerId AS NaturalCustomerId\r\n",
+					"        ,'Northwind' AS CustomerDataSource\r\n",
+					"        ,NWC.CompanyName AS Customer\r\n",
+					"        ,'N/A' AS CustomerCategory\r\n",
+					"        ,NWC.ContactName AS PrimaryContact\r\n",
+					"    FROM NW_Customer NWC\r\n",
+					")\r\n",
+					"SELECT\r\n",
+					"     ROW_NUMBER() OVER(ORDER BY ( SELECT NULL )) AS DIM_CustomerId --populate unique dim key.  DIM_Key regenerated with every run\r\n",
+					"    ,CS.NaturalCustomerId\r\n",
+					"    ,CS.CustomerDataSource\r\n",
+					"    ,CS.Customer\r\n",
+					"    ,NULL AS PriorCustomerName\r\n",
+					"    ,CS.CustomerCategory\r\n",
+					"    ,CS.PrimaryContact\r\n",
+					"    ,NULL AS  PriorPrimaryContact\r\n",
+					"FROM Customer_Stage CS\r\n",
+					"\r\n",
+					"UNION\r\n",
+					"\r\n",
+					"SELECT\r\n",
+					"     -1 AS DIM_CustomerId\r\n",
+					"    ,-1 AS NaturalCustomerId\r\n",
+					"    ,'N/A' AS CustomerDataSource\r\n",
+					"    ,'N/A' AS Customer\r\n",
+					"    ,'N/A' AS PriorCustomerName\r\n",
+					"    ,'N/A' AS CustomerCategory\r\n",
+					"    ,'N/A' AS PrimaryContact\r\n",
+					"    ,'N/A' AS PriorPrimaryContact\r\n",
+					"   ;\r\n",
+					"\r\n",
+					"--Refreshes table in cache\r\n",
+					"REFRESH TABLE DIM_Customer;"
+				],
+				"attachments": null,
+				"execution_count": 10
+			}
+		]
+	}
+}

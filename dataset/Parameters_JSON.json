@@ -1,0 +1,24 @@
+{
+	"name": "Parameters_JSON",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "jaknigh-termproject-WorkspaceDefaultStorage",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "Json",
+		"typeProperties": {
+			"location": {
+				"type": "AzureBlobFSLocation",
+				"fileName": {
+					"value": "DYN_Parameters.json",
+					"type": "Expression"
+				},
+				"folderPath": "metadata",
+				"fileSystem": "termproject"
+			}
+		},
+		"schema": {}
+	},
+	"type": "Microsoft.Synapse/workspaces/datasets"
+}

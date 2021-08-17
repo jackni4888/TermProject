@@ -1,0 +1,142 @@
+{
+	"name": "load_metadata_Lookup_CountryCode",
+	"properties": {
+		"folder": {
+			"name": "load_metadata"
+		},
+		"nbformat": 4,
+		"nbformat_minor": 2,
+		"bigDataPool": {
+			"referenceName": "sparkpool",
+			"type": "BigDataPoolReference"
+		},
+		"sessionProperties": {
+			"driverMemory": "28g",
+			"driverCores": 4,
+			"executorMemory": "28g",
+			"executorCores": 4,
+			"numExecutors": 2,
+			"conf": {
+				"spark.dynamicAllocation.enabled": "false",
+				"spark.dynamicAllocation.minExecutors": "2",
+				"spark.dynamicAllocation.maxExecutors": "2"
+			}
+		},
+		"metadata": {
+			"saveOutput": true,
+			"synapse_widget": {
+				"version": "0.1"
+			},
+			"kernelspec": {
+				"name": "synapse_sparksql",
+				"display_name": "Synapse SQL"
+			},
+			"language_info": {
+				"name": "sql"
+			},
+			"a365ComputeOptions": {
+				"id": "/subscriptions/b4f891dc-d700-4853-9305-93cd43d90bc4/resourceGroups/AzureStudent/providers/Microsoft.Synapse/workspaces/jaknigh-termproject/bigDataPools/sparkpool",
+				"name": "sparkpool",
+				"type": "Spark",
+				"endpoint": "https://jaknigh-termproject.dev.azuresynapse.net/livyApi/versions/2019-11-01-preview/sparkPools/sparkpool",
+				"auth": {
+					"type": "AAD",
+					"authResource": "https://dev.azuresynapse.net"
+				},
+				"sparkVersion": "2.4",
+				"nodeCount": 10,
+				"cores": 4,
+				"memory": 28,
+				"extraHeader": null
+			}
+		},
+		"cells": [
+			{
+				"cell_type": "markdown",
+				"metadata": {
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					}
+				},
+				"source": [
+					"Static dataset.  This is a data cleansing lookup file that should be replaced by a DQS type tool. "
+				],
+				"attachments": null
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"CREATE OR REPLACE TEMPORARY VIEW Lookup_CountryCode_Stage AS\r\n",
+					"SELECT 'Argentina' AS AltCountryName, 'ARG' AS ISOCountryCode UNION\r\n",
+					"SELECT 'Austria' AS AltCountryName, 'AUT' AS ISOCountryCode UNION\r\n",
+					"SELECT 'Belgium' AS AltCountryName, 'BEL' AS ISOCountryCode UNION\r\n",
+					"SELECT 'Brazil' AS AltCountryName, 'BRA' AS ISOCountryCode UNION\r\n",
+					"SELECT 'Canada' AS AltCountryName, 'CAN' AS ISOCountryCode UNION\r\n",
+					"SELECT 'Denmark' AS AltCountryName, 'DNK' AS ISOCountryCode UNION\r\n",
+					"SELECT 'Finland' AS AltCountryName, 'FIN' AS ISOCountryCode UNION\r\n",
+					"SELECT 'France' AS AltCountryName, 'FRA' AS ISOCountryCode UNION\r\n",
+					"SELECT 'Germany' AS AltCountryName, 'DEU' AS ISOCountryCode UNION\r\n",
+					"SELECT 'Ireland' AS AltCountryName, 'IRL' AS ISOCountryCode UNION\r\n",
+					"SELECT 'Italy' AS AltCountryName, 'ITA' AS ISOCountryCode UNION\r\n",
+					"SELECT 'Mexico' AS AltCountryName, 'MEX' AS ISOCountryCode UNION\r\n",
+					"SELECT 'Norway' AS AltCountryName, 'NOR' AS ISOCountryCode UNION\r\n",
+					"SELECT 'Poland' AS AltCountryName, 'POL' AS ISOCountryCode UNION\r\n",
+					"SELECT 'Portugal' AS AltCountryName, 'PRT' AS ISOCountryCode UNION\r\n",
+					"SELECT 'Spain' AS AltCountryName, 'ESP' AS ISOCountryCode UNION\r\n",
+					"SELECT 'Sweden' AS AltCountryName, 'SWE' AS ISOCountryCode UNION\r\n",
+					"SELECT 'Switzerland' AS AltCountryName, 'CHE' AS ISOCountryCode UNION\r\n",
+					"SELECT 'UK' AS AltCountryName, 'GBR' AS ISOCountryCode UNION\r\n",
+					"SELECT 'USA' AS AltCountryName, 'USA' AS ISOCountryCode UNION\r\n",
+					"SELECT 'Venezuela' AS AltCountryName, 'VEN' AS ISOCountryCode"
+				],
+				"attachments": null,
+				"execution_count": 1
+			},
+			{
+				"cell_type": "code",
+				"metadata": {
+					"jupyter": {
+						"source_hidden": false,
+						"outputs_hidden": false
+					},
+					"nteract": {
+						"transient": {
+							"deleting": false
+						}
+					},
+					"collapsed": false
+				},
+				"source": [
+					"DROP TABLE IF EXISTS Lookup_CountryCode;\r\n",
+					"\r\n",
+					"CREATE TABLE Lookup_CountryCode\r\n",
+					"USING Parquet\r\n",
+					"LOCATION \"abfss://termproject@jaknigh.dfs.core.windows.net/metadata/Lookup_CountryCode\"\r\n",
+					"AS\r\n",
+					"SELECT\r\n",
+					"     AltCountryName\r\n",
+					"    ,ISOCountryCode\r\n",
+					"FROM Lookup_CountryCode_Stage;\r\n",
+					"\r\n",
+					"REFRESH TABLE Lookup_CountryCode;"
+				],
+				"attachments": null,
+				"execution_count": null
+			}
+		]
+	}
+}

@@ -1,0 +1,40 @@
+{
+	"name": "SQL_WorldWideImporter",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "AzureSQL_jaknigh",
+			"type": "LinkedServiceReference",
+			"parameters": {
+				"DatabaseName": {
+					"value": "@dataset().Source_Database",
+					"type": "Expression"
+				}
+			}
+		},
+		"parameters": {
+			"Source_Schema": {
+				"type": "String"
+			},
+			"Source_Table": {
+				"type": "String"
+			},
+			"Source_Database": {
+				"type": "string"
+			}
+		},
+		"annotations": [],
+		"type": "AzureSqlTable",
+		"schema": [],
+		"typeProperties": {
+			"schema": {
+				"value": "@dataset().Source_Schema",
+				"type": "Expression"
+			},
+			"table": {
+				"value": "@dataset().Source_Table",
+				"type": "Expression"
+			}
+		}
+	},
+	"type": "Microsoft.Synapse/workspaces/datasets"
+}

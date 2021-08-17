@@ -1,0 +1,25 @@
+{
+	"name": "Trigger_Master_Pipeline",
+	"properties": {
+		"annotations": [],
+		"runtimeState": "Started",
+		"pipelines": [
+			{
+				"pipelineReference": {
+					"referenceName": "0000_Master_Pipeline",
+					"type": "PipelineReference"
+				}
+			}
+		],
+		"type": "ScheduleTrigger",
+		"typeProperties": {
+			"recurrence": {
+				"frequency": "Day",
+				"interval": 1,
+				"startTime": "2021-08-16T15:45:00",
+				"endTime": "2021-08-18T00:01:00",
+				"timeZone": "Pacific Standard Time"
+			}
+		}
+	}
+}
